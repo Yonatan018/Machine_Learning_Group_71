@@ -5,31 +5,22 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import warnings
-import jax
 
-from scipy import stats
 from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.tree import DecisionTreeClassifier, plot_tree
-from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.decomposition import PCA
-from sklearn.impute import SimpleImputer
-from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV
-from sklearn.metrics import accuracy_score, f1_score, recall_score, precision_score, confusion_matrix
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler, MinMaxScaler
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.metrics import accuracy_score, f1_score, recall_score, precision_score, confusion_matrix, roc_curve, auc, precision_recall_curve
+from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_selection import RFE
-from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_curve, auc, precision_recall_curve
-from xgboost import XGBClassifier
-from catboost import CatBoostClassifier
-from lightgbm import LGBMClassifier
 
 
 warnings.filterwarnings("ignore")
-%matplotlib inline
 sns.set(style="darkgrid",font_scale=1.5)
 pd.set_option("display.max.rows",None)
 pd.set_option("display.max.columns",None)
@@ -690,7 +681,7 @@ print("Best Parameters for Decision Tree:", dt_grid_search.best_params_)
 best_dt_model = dt_grid_search.best_estimator_
 
 # Evaluate the best Decision Tree model on the validation set
-y_pred_dt = best_dt_model.predict(x_val[selected_features])
+y_pred_dt = best_dt_model.predict(x_val)
 accuracy_dt = accuracy_score(y_val, y_pred_dt)
 print("Accuracy of Best Decision Tree Model:", accuracy_dt)
 
@@ -807,7 +798,7 @@ print("Accuracy of Logistic Regression Model:", accuracy_lr)
 # Train and evaluate each model
 for model_name, model in models.items():
     # Train model on selected features
-    model.fit(x_train[selected_features], y_train)
+    model.fit(x_train, y_train)
     
     # Predict on validation data
     y_pred = model.predict(x_val[x_train])
@@ -823,7 +814,7 @@ for model_name, model in models.items():
 def plot_curves(model, x_val, y_val, model_name):
     if hasattr(model, "predict_proba"):
         # Predict probabilities
-        y_probs = model.predict_proba(x_val[selected_features])[:, 1]
+        y_probs = model.predict_proba(x_val)[:, 1]
 
         # Calculate ROC curve and AUC
         fpr, tpr, _ = roc_curve(y_val, y_probs)
