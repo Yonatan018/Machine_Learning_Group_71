@@ -9,7 +9,7 @@ from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.metrics import accuracy_score, f1_score, recall_score, precision_score, confusion_matrix, log_loss, roc_auc_score,make_scorer
+from sklearn.metrics import accuracy_score, f1_score, recall_score, precision_score, confusion_matrix, log_loss, roc_auc_score,r2_score
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler, MinMaxScaler
 from sklearn.feature_selection import RFE
 from sklearn.model_selection import train_test_split
@@ -188,21 +188,20 @@ scaler = StandardScaler()
 x_train_scaled = scaler.fit_transform(x_train)
 x_val_scaled = scaler.transform(x_val)
 
-pca = PCA(n_components=x_train.shape[1])  # PCA with all components
+pca = PCA(n_components=x_train.shape[1])
 x_train_pca = pca.fit_transform(x_train_scaled)
 x_val_pca = pca.transform(x_val_scaled)
 
 explained_variance = pca.explained_variance_ratio_
 
-## 
+### 
 #      Hyperparameter Tuning: using Gridsearch
 ###
 
 #### Decision Tree
-dt_classifier = DecisionTreeClassifier()
 pipe_tree_dt = Pipeline([
     ('pca', PCA()),
-    ('dt_classifier', dt_classifier)
+    ('dt_classifier', DecisionTreeClassifier())
 ])
 
 dt_param_grid = {
@@ -212,15 +211,8 @@ dt_param_grid = {
     'dt_classifier__max_features': [None, 'sqrt', 'log2']
 }
 
-scoring_params = {
-    'roc_auc': make_scorer(roc_auc_score),
-    'accuracy': make_scorer(accuracy_score),
-    'neg_log_loss': make_scorer(log_loss, greater_is_better=False, needs_proba=True),
-    'f1': make_scorer(f1_score)
-}
-
 # Create a GridSearchCV object
-dt_grid_search = GridSearchCV(estimator=pipe_tree_dt, param_grid=dt_param_grid, cv=3, 
+dt_grid_search = GridSearchCV(estimator=pipe_tree_dt, param_grid=dt_param_grid, cv=5, 
                               scoring='roc_auc', verbose=2, n_jobs=-1, refit=True)
 
 # Fit the GridSearchCV object on training data
@@ -238,7 +230,6 @@ roc_auc_dt = roc_auc_score(y_val, grid_dt)
 print("ROC AUC Score:", roc_auc_dt)
 
 #### kNN
-knn_classifier = KNeighborsClassifier()
 knn_param_grid = {
     'knn_classifier__n_neighbors': [1,2,3,4,5,6,7,8,9,10],
     'knn_classifier__weights': ['uniform', 'distance'],
@@ -247,7 +238,7 @@ knn_param_grid = {
 
 pipe_knn = Pipeline([
     ('pca', PCA()),
-    ('knn_classifier', knn_classifier)
+    ('knn_classifier', KNeighborsClassifier())
 ])
 
 knn_grid_search = GridSearchCV(estimator=pipe_knn, param_grid=knn_param_grid, cv=5,
@@ -269,14 +260,18 @@ roc_auc_knn = roc_auc_score(y_val, grid_knn)
 print("ROC AUC Score:", roc_auc_knn)
 
 ### Scaler Vector Matrix
-svc_classifier = SVC()
+pipe_svc = Pipeline([
+    ('pca', PCA()),
+    ('svc', SVC())
+])
+
 svc_param_grid = {
-    'C': [0.1, 1, 10, 100, 1000],
-    'kernel': ['rbf'],
-    'gamma': [1, 0.1, 0.01, 0.001, 0.0001]
+    'svc__C': [0.1, 1, 10, 100, 1000],
+    'svc__kernel': ['rbf'], 
+    'svc__gamma': [1, 0.1, 0.01, 0.001, 0.0001]
 }
 
-svc_grid_search = GridSearchCV(estimator=svc_classifier, param_grid=svc_param_grid, cv=3, scoring='roc_auc', verbose=2, n_jobs=-1, refit=True)
+svc_grid_search = GridSearchCV(estimator=pipe_svc, param_grid=svc_param_grid, cv=5, scoring='roc_auc', verbose=2, n_jobs=-1, refit=True)
 
 svc_grid_search.fit(x_train_scaled, y_train)
 
@@ -298,17 +293,14 @@ lr_param_grid = {
     'lr_classifier__penalty': ['l2']
 }
 
-# Initialize Logistic Regression classifier
-lr_classifier = LogisticRegression()
-
 # Create a pipeline
 pipe_lr = Pipeline([
     ('pca', PCA()),
-    ('lr_classifier', lr_classifier)
+    ('lr_classifier', LogisticRegression())
 ])
 
 # Create a GridSearchCV object for Logistic Regression
-lr_grid_search = GridSearchCV(estimator=pipe_lr, param_grid=lr_param_grid, cv=3, 
+lr_grid_search = GridSearchCV(estimator=pipe_lr, param_grid=lr_param_grid, cv=5, 
                               scoring='roc_auc', verbose=2, n_jobs=-1, refit=True)
 
 # Fit GridSearchCV object on training data
@@ -329,22 +321,12 @@ print("ROC AUC Score:", roc_auc_lr)
 ###
 #       Final Predictions
 ###
-
-# Scale the test data using the same scaler fitted on the training data
 x_test_scaled = scaler.transform(preprocessed_test_df)
-
-# Perform PCA on the test data using the same PCA instance fitted on the training data
 x_test_pca = pca.transform(x_test_scaled)
 
-# Predict using the best SVM model
 test_predictions = svc_grid_search.predict(x_test_pca)
-
-# Create a DataFrame for test predictions
-# Convert 0 to False and 1 to True in 'Transported' column
-test_predictions['Transported'] = test_predictions['Transported'].replace({0: False, 1: True})
-
-# Create a DataFrame for test predictions with boolean values in 'Transported' column
 test_predictions_df = pd.DataFrame({'PassengerId': test_passenger_ids, 'Transported': test_predictions})
 
-# Save predictions to a CSV file
+test_predictions_df['Transported'] = test_predictions_df['Transported'].replace({0: False, 1: True})
+
 test_predictions_df.to_csv('Space_Titanic/test_predictions.csv', index=False)
