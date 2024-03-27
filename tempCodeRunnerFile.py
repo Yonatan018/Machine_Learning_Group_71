@@ -1,8 +1,1 @@
-  # cabin_new_features(df)
-    # luxury_amenities_new_feature(df)
-    # data_to_categories(df)
-    # expenditure_category(df)
-    # age_groups(df)
-    # df_le(df)
-    # df_ohe(df)
-    # print(df.columns)
+knn_grid_search
