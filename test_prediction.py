@@ -160,8 +160,8 @@ def preprocess(df):
     return df
 
 # Load test data
-test_df = pd.read_csv("C:/Users/yonat/OneDrive/Bureaublad/VU/Current Courses/Machine Learning/Space_Titanic/test.csv", delimiter=',', header=0)
-train_df = pd.read_csv("C:/Users/yonat/OneDrive/Bureaublad/VU/Current Courses/Machine Learning/Space_Titanic/train.csv", delimiter=',', header=0)
+test_df = pd.read_csv("Space_Titanic/test.csv", delimiter=',', header=0)
+train_df = pd.read_csv("Space_Titanic/train.csv", delimiter=',', header=0)
 
 # Preprocess test data
 # Preprocess test data
@@ -183,7 +183,6 @@ x = preprocessed_train_df.drop(columns=['Transported'])
 
 # Split data into train and validation sets
 x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.2, random_state=42, shuffle=True, stratify=y)
-print(x.columns)
 
 scaler = StandardScaler()
 x_train_scaled = scaler.fit_transform(x_train)
@@ -341,7 +340,11 @@ x_test_pca = pca.transform(x_test_scaled)
 test_predictions = svc_grid_search.predict(x_test_pca)
 
 # Create a DataFrame for test predictions
+# Convert 0 to False and 1 to True in 'Transported' column
+test_predictions['Transported'] = test_predictions['Transported'].replace({0: False, 1: True})
+
+# Create a DataFrame for test predictions with boolean values in 'Transported' column
 test_predictions_df = pd.DataFrame({'PassengerId': test_passenger_ids, 'Transported': test_predictions})
 
 # Save predictions to a CSV file
-test_predictions_df.to_csv('test_predictions.csv', index=False)
+test_predictions_df.to_csv('Space_Titanic/test_predictions.csv', index=False)
