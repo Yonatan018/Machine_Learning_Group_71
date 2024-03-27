@@ -145,9 +145,8 @@ def data_to_float(df):
     if 'Transported' in df.columns:
         df['Transported'] = df['Transported'].astype(float)
 
+
 def preprocess(df):
-    adjust_missing_stats(df)
-    deduplicate(df)
     age_groups(df)
     passengerid_new_features(df)
     cabin_new_features(df)
@@ -163,17 +162,14 @@ def preprocess(df):
 test_df = pd.read_csv("Space_Titanic/test.csv", delimiter=',', header=0)
 train_df = pd.read_csv("Space_Titanic/train.csv", delimiter=',', header=0)
 
-# Preprocess test data
-# Preprocess test data
-preprocessed_test_df = preprocess(test_df)
-preprocessed_train_df = preprocess(train_df)
+# adjust for missing
+adjust_missing_stats(train_df)
+deduplicate(train_df)
 
-# Preserve PassengerId column in preprocessed_test_df
-test_passenger_ids = preprocessed_test_df['PassengerId']
+# Preprocess test data
+preprocessed_train_df = preprocess(train_df).set_index('PassengerId')
+preporcessed_test_df = preprocess(test_df).set_index('PassengerId')
 
-# Drop PassengerId column from features for prediction
-preprocessed_test_df = preprocessed_test_df.set_index('PassengerId')
-preprocessed_train_df = preprocessed_train_df.set_index('PassengerId')
 ''' 
         Train Data: and adjust scale through PCA
 '''
@@ -211,9 +207,11 @@ dt_param_grid = {
     'dt_classifier__max_features': [None, 'sqrt', 'log2']
 }
 
+scoring_params = ['accuracy', 'neg_log_loss', 'roc_auc', 'f1']
+
 # Create a GridSearchCV object
 dt_grid_search = GridSearchCV(estimator=pipe_tree_dt, param_grid=dt_param_grid, cv=5, 
-                              scoring='roc_auc', verbose=2, n_jobs=-1, refit=True)
+                              scoring=scoring_params, verbose=2, n_jobs=-1, refit='roc_auc')
 
 # Fit the GridSearchCV object on training data
 dt_grid_search.fit(x_train_scaled, y_train)
@@ -221,12 +219,21 @@ dt_grid_search.fit(x_train_scaled, y_train)
 # Predict using the best estimator from grid search
 grid_dt = dt_grid_search.predict(x_val_scaled)
 roc_auc_dt = roc_auc_score(y_val, grid_dt)
+accuracy_dt = accuracy_score(y_val, grid_dt)
+f1_dt = f1_score(y_val, grid_dt)
+
+probabilities_dt = dt_grid_search.predict_proba(x_val_scaled)
+neg_log_loss_dt = -log_loss(y_val, probabilities_dt)
 
 # Print the best estimator and best parameters
 print("Best Estimator:", dt_grid_search.best_estimator_)
-print("\nBest Parameters: ",dt_grid_search.best_params_)
-print("\nBest Score: ", dt_grid_search.best_score_)
-print("\nROC AUC Score: ", roc_auc_dt)
+print("Best Parameters: ",dt_grid_search.best_params_)
+print("Best Score: ", dt_grid_search.best_score_)
+print("ROC AUC Score: ", roc_auc_dt)
+print("Accuracy score: ", accuracy_dt)
+print("F1 Score:", f1_dt)
+print("Negative Log Loss:", neg_log_loss_dt)
+
 
 #### kNN
 knn_param_grid = {
@@ -241,7 +248,7 @@ pipe_knn = Pipeline([
 ])
 
 knn_grid_search = GridSearchCV(estimator=pipe_knn, param_grid=knn_param_grid, cv=5,
-                               scoring='roc_auc', verbose=2, n_jobs=-1, refit=True)
+                               scoring=scoring_params, verbose=2, n_jobs=-1, refit='roc_auc')
 
 
 # Fit the GridSearchCV object on training data
@@ -250,17 +257,25 @@ knn_grid_search.fit(x_train_scaled, y_train)
 # Predict using the best estimator from grid search
 grid_knn = knn_grid_search.predict(x_val_scaled)
 roc_auc_knn = roc_auc_score(y_val, grid_knn)
+accuracy_knn = accuracy_score(y_val, grid_knn)
+f1_knn = f1_score(y_val, grid_knn)
+
+probabilities_knn = knn_grid_search.predict_proba(x_val_scaled)
+neg_log_loss_knn = -log_loss(y_val, probabilities_knn)
 
 # Print the best estimator and best parameters
 print("Best Estimator:", knn_grid_search.best_estimator_)
-print("\nBest Parameters: ",knn_grid_search.best_params_)
+print("Best Parameters: ",knn_grid_search.best_params_)
 print("Best Score: ", knn_grid_search.best_score_)
 print("ROC AUC Score: ", roc_auc_knn)
+print("Accuracy score: ", accuracy_knn)
+print("F1 Score:", f1_knn)
+print("Negative Log Loss:", neg_log_loss_knn)
 
-### Scaler Vector Matrix
+# SVC
 pipe_svc = Pipeline([
     ('pca', PCA()),
-    ('svc', SVC())
+    ('svc', SVC(probability=True))
 ])
 
 svc_param_grid = {
@@ -269,29 +284,30 @@ svc_param_grid = {
     'svc__gamma': [1, 0.1, 0.01, 0.001, 0.0001]
 }
 
-svc_grid_search = GridSearchCV(estimator=pipe_svc, param_grid=svc_param_grid, cv=5, scoring='roc_auc', verbose=2, n_jobs=-1, refit=True)
+svc_grid_search = GridSearchCV(estimator=pipe_svc, param_grid=svc_param_grid, cv=5, scoring=scoring_params, verbose=2, n_jobs=-1, refit='roc_auc')
 
 svc_grid_search.fit(x_train_scaled, y_train)
 
 # Predict using the best estimator from grid search
 grid_svc = svc_grid_search.predict(x_val_scaled)
-roc_auc_svm = roc_auc_score(y_val, grid_svc)
+roc_auc_svc = roc_auc_score(y_val, grid_svc)
+accuracy_svc = accuracy_score(y_val, grid_svc)
+f1_svc = f1_score(y_val, grid_svc)
 
+probabilities_svc = svc_grid_search.predict_proba(x_val_scaled)
+neg_log_loss_svc = log_loss(y_val, probabilities_svc)
 # Print the best estimator and best parameters
 print("Best Estimator:",svc_grid_search.best_estimator_)
-print("\nBest Parameters: ",svc_grid_search.best_params_)
+print("Best Parameters: ",svc_grid_search.best_params_)
 print("Best Score: ", svc_grid_search.best_score_)
-print("ROC AUC Score: ", roc_auc_svm)
+print("ROC AUC Score: ", roc_auc_svc)
+print("Accuracy score: ", accuracy_svc)
+print("F1 Score:", f1_svc)
+print("Negative Log Loss:", neg_log_loss_svc)
 
 ### Logistic Regression
 lr_param_grid = {
-    'lr_classifier__C': [0.1, 1, 10],  # Note the prefix 'lr_classifier__' to specify the parameter for Logistic Regression
-    'lr_classifier__penalty': ['l2']
-}
-
-# Create a pipeline
-lr_param_grid = {
-    'lr_classifier__C': [0.1, 1, 10],  # Note the prefix 'lr_classifier__' to specify the parameter for Logistic Regression
+    'lr_classifier__C': [0.1, 1, 10],
     'lr_classifier__penalty': ['l2']
 }
 
@@ -303,7 +319,7 @@ pipe_lr = Pipeline([
 
 # Create a GridSearchCV object for Logistic Regression
 lr_grid_search = GridSearchCV(estimator=pipe_lr, param_grid=lr_param_grid, cv=5, 
-                              scoring='roc_auc', verbose=2, n_jobs=-1, refit=True)
+                              scoring=scoring_params, verbose=2, n_jobs=-1, refit='roc_auc')
 
 # Fit GridSearchCV object on training data
 lr_grid_search.fit(x_train_scaled, y_train)
@@ -311,33 +327,39 @@ lr_grid_search.fit(x_train_scaled, y_train)
 # Predict using the best estimator from grid search
 grid_lr = lr_grid_search.predict(x_val_scaled)
 roc_auc_lr = roc_auc_score(y_val, grid_lr)
+accuracy_lr = accuracy_score(y_val, grid_lr)
+f1_lr = f1_score(y_val, grid_lr)
+
+probabilities_lr = lr_grid_search.predict_proba(x_val_scaled)
+neg_log_loss_lr = log_loss(y_val, probabilities_lr)
 
 # Print the best parameters and ROC AUC score
 print("Logistic Regression:")
-print("\nBest Parameters: ", lr_grid_search.best_params_)
+print("Best Parameters: ", lr_grid_search.best_params_)
 print("Best Score: ", lr_grid_search.best_score_)
 print("ROC AUC Score: ", roc_auc_lr)
-
+print("F1 Score:", f1_lr)
+print("Negative Log Loss:", neg_log_loss_lr)
 
 ###
 #       Final Predictions
 ###
-x_test_scaled = scaler.transform(preprocessed_test_df)
+
+x_test_scaled = scaler.transform(preporcessed_test_df)
 x_test_pca = pca.transform(x_test_scaled)
 
 test_predictions = svc_grid_search.predict(x_test_pca)
-test_predictions_df = pd.DataFrame({'PassengerId': test_passenger_ids, 'Transported': test_predictions})
+test_predictions_df = pd.DataFrame({'PassengerId': preporcessed_test_df.index, 'Transported': test_predictions})
 
 test_predictions_df['Transported'] = test_predictions_df['Transported'].replace({0: False, 1: True})
-transported_counts = test_predictions_df['Transported'].value_counts()
-
-# Calculate the proportion of each class
-proportion_true = transported_counts[True] / len(test_predictions_df)
 
 test_predictions_df.to_csv('Space_Titanic/test_predictions.csv', index=False)
 
+## Show Proportions of Transported
+transported_counts = test_predictions_df['Transported'].value_counts()
+
+proportion_true = transported_counts[True] / len(test_predictions_df)
 proportion_false = transported_counts[False] / len(test_predictions_df)
 
-# Print the proportions
 print("Proportion of Transported=True:", proportion_true)
 print("Proportion of Transported=False:", proportion_false)
