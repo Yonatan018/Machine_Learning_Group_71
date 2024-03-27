@@ -220,14 +220,13 @@ dt_grid_search.fit(x_train_scaled, y_train)
 
 # Predict using the best estimator from grid search
 grid_dt = dt_grid_search.predict(x_val_scaled)
+roc_auc_dt = roc_auc_score(y_val, grid_dt)
 
 # Print the best estimator and best parameters
-print("Best Estimator:")
-print(dt_grid_search.best_estimator_)
-print("\nBest Parameters:")
-print(dt_grid_search.best_params_)
-roc_auc_dt = roc_auc_score(y_val, grid_dt)
-print("ROC AUC Score:", roc_auc_dt)
+print("Best Estimator:", dt_grid_search.best_estimator_)
+print("\nBest Parameters: ",dt_grid_search.best_params_)
+print("\nBest Score: ", dt_grid_search.best_score_)
+print("\nROC AUC Score: ", roc_auc_dt)
 
 #### kNN
 knn_param_grid = {
@@ -250,14 +249,13 @@ knn_grid_search.fit(x_train_scaled, y_train)
 
 # Predict using the best estimator from grid search
 grid_knn = knn_grid_search.predict(x_val_scaled)
+roc_auc_knn = roc_auc_score(y_val, grid_knn)
 
 # Print the best estimator and best parameters
-print("Best Estimator:")
-print(knn_grid_search.best_estimator_)
-print("\nBest Parameters:")
-print(knn_grid_search.best_params_)
-roc_auc_knn = roc_auc_score(y_val, grid_knn)
-print("ROC AUC Score:", roc_auc_knn)
+print("Best Estimator:", knn_grid_search.best_estimator_)
+print("\nBest Parameters: ",knn_grid_search.best_params_)
+print("Best Score: ", knn_grid_search.best_score_)
+print("ROC AUC Score: ", roc_auc_knn)
 
 ### Scaler Vector Matrix
 pipe_svc = Pipeline([
@@ -276,18 +274,22 @@ svc_grid_search = GridSearchCV(estimator=pipe_svc, param_grid=svc_param_grid, cv
 svc_grid_search.fit(x_train_scaled, y_train)
 
 # Predict using the best estimator from grid search
-grid_svm = svc_grid_search.predict(x_val_scaled)
+grid_svc = svc_grid_search.predict(x_val_scaled)
+roc_auc_svm = roc_auc_score(y_val, grid_svc)
 
 # Print the best estimator and best parameters
-print("Best Estimator:")
-print(svc_grid_search.best_estimator_)
-print("\nBest Parameters:")
-print(svc_grid_search.best_params_)
-roc_auc_svm = roc_auc_score(y_val, grid_svm)
-print("ROC AUC Score:", roc_auc_svm)
+print("Best Estimator:",svc_grid_search.best_estimator_)
+print("\nBest Parameters: ",svc_grid_search.best_params_)
+print("Best Score: ", svc_grid_search.best_score_)
+print("ROC AUC Score: ", roc_auc_svm)
 
 ### Logistic Regression
-# Define the parameter grid for Logistic Regression
+lr_param_grid = {
+    'lr_classifier__C': [0.1, 1, 10],  # Note the prefix 'lr_classifier__' to specify the parameter for Logistic Regression
+    'lr_classifier__penalty': ['l2']
+}
+
+# Create a pipeline
 lr_param_grid = {
     'lr_classifier__C': [0.1, 1, 10],  # Note the prefix 'lr_classifier__' to specify the parameter for Logistic Regression
     'lr_classifier__penalty': ['l2']
@@ -308,14 +310,13 @@ lr_grid_search.fit(x_train_scaled, y_train)
 
 # Predict using the best estimator from grid search
 grid_lr = lr_grid_search.predict(x_val_scaled)
-
-# Calculate ROC AUC score on the validation set
 roc_auc_lr = roc_auc_score(y_val, grid_lr)
 
 # Print the best parameters and ROC AUC score
 print("Logistic Regression:")
-print("Best Parameters:", lr_grid_search.best_params_)
-print("ROC AUC Score:", roc_auc_lr)
+print("\nBest Parameters: ", lr_grid_search.best_params_)
+print("Best Score: ", lr_grid_search.best_score_)
+print("ROC AUC Score: ", roc_auc_lr)
 
 
 ###
@@ -328,5 +329,15 @@ test_predictions = svc_grid_search.predict(x_test_pca)
 test_predictions_df = pd.DataFrame({'PassengerId': test_passenger_ids, 'Transported': test_predictions})
 
 test_predictions_df['Transported'] = test_predictions_df['Transported'].replace({0: False, 1: True})
+transported_counts = test_predictions_df['Transported'].value_counts()
+
+# Calculate the proportion of each class
+proportion_true = transported_counts[True] / len(test_predictions_df)
 
 test_predictions_df.to_csv('Space_Titanic/test_predictions.csv', index=False)
+
+proportion_false = transported_counts[False] / len(test_predictions_df)
+
+# Print the proportions
+print("Proportion of Transported=True:", proportion_true)
+print("Proportion of Transported=False:", proportion_false)
